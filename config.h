@@ -60,7 +60,7 @@
 // #define DISPLAY_CROPPED_INSTEAD_OF_SCALING
 
 // If enabled, the main thread and SPI thread are executed with realtime priority
-// #define RUN_WITH_REALTIME_THREAD_PRIORITY
+#define RUN_WITH_REALTIME_THREAD_PRIORITY
 
 // If defined, progressive updating is always used (at the expense of slowing down refresh rate if it's
 // too much for the display to handle)
@@ -75,7 +75,7 @@
 #endif
 
 // If defined, all frames are always rendered as interlaced, and never use progressive rendering.
-// #define ALWAYS_INTERLACING
+#define ALWAYS_INTERLACING
 
 // By default, if the SPI bus is idle after rendering an interlaced frame, but the GPU has not yet produced
 // a new application frame to be displayed, the same frame will be rendered again for its other field.
@@ -91,7 +91,7 @@
 
 // If defined, DMA usage is foremost used to save power consumption and CPU usage. If not defined,
 // DMA usage is tailored towards maximum performance.
-// #define ALL_TASKS_SHOULD_DMA
+#define ALL_TASKS_SHOULD_DMA
 
 // If defined, screen updates are performed in strictly one update rectangle per frame.
 // This reduces CPU consumption at the expense of sending more pixels. You can try enabling this
@@ -108,7 +108,7 @@
 // If defined, screen updates are performend without performing diffing at all, i.e. by doing
 // full updates. This is very lightweight on CPU, but excessive on the SPI bus. Enabling this
 // requires that ALL_TASKS_SHOULD_DMA is also enabled.
-// #define UPDATE_FRAMES_WITHOUT_DIFFING
+#define UPDATE_FRAMES_WITHOUT_DIFFING
 
 #if defined(SINGLE_CORE_BOARD) && defined(USE_DMA_TRANSFERS) && !defined(SPI_3WIRE_PROTOCOL) // TODO: 3-wire SPI displays are not yet compatible with ALL_TASKS_SHOULD_DMA option.
 // These are prerequisites for good performance on Pi Zero
@@ -158,7 +158,7 @@
 // #define DISPLAY_ROTATE_180_DEGREES
 
 // If defined, displays in landscape. Undefine to display in portrait.
-#define DISPLAY_OUTPUT_LANDSCAPE
+// #define DISPLAY_OUTPUT_LANDSCAPE
 
 // If defined, the source video frame is scaled to fit the SPI display by stretching to fit, ignoring
 // aspect ratio. Enabling this will cause e.g. 16:9 1080p source to be stretched to fully cover
@@ -201,7 +201,7 @@
 
 // If enabled, reads keyboard for input events to detect when the system has gone inactive and backlight
 // can be turned off
-#define BACKLIGHT_CONTROL_FROM_KEYBOARD
+// #define BACKLIGHT_CONTROL_FROM_KEYBOARD
 
 // This device file is used to capture keyboard input. This may be "/dev/input/event0" or something else
 // on some Pis

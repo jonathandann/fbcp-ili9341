@@ -33,9 +33,9 @@
 int CountNumChangedPixels(uint16_t *framebuffer, uint16_t *prevFramebuffer)
 {
   int changedPixels = 0;
-  for(int y = 0; y < gpuFrameHeight; ++y)
+  for (int y = 0; y < gpuFrameHeight; ++y)
   {
-    for(int x = 0; x < gpuFrameWidth; ++x)
+    for (int x = 0; x < gpuFrameWidth; ++x)
       if (framebuffer[x] != prevFramebuffer[x])
         ++changedPixels;
 
@@ -52,11 +52,16 @@ volatile bool programRunning = true;
 
 const char *SignalToString(int signal)
 {
-  if (signal == SIGINT) return "SIGINT";
-  if (signal == SIGQUIT) return "SIGQUIT";
-  if (signal == SIGUSR1) return "SIGUSR1";
-  if (signal == SIGUSR2) return "SIGUSR2";
-  if (signal == SIGTERM) return "SIGTERM";
+  if (signal == SIGINT)
+    return "SIGINT";
+  if (signal == SIGQUIT)
+    return "SIGQUIT";
+  if (signal == SIGUSR1)
+    return "SIGUSR1";
+  if (signal == SIGUSR2)
+    return "SIGUSR2";
+  if (signal == SIGTERM)
+    return "SIGTERM";
   return "?";
 }
 
@@ -112,23 +117,23 @@ int main()
 
   InitGPU();
 
-  spans = (Span*)Malloc((gpuFrameWidth * gpuFrameHeight / 2) * sizeof(Span), "main() task spans");
+  spans = (Span *)Malloc((gpuFrameWidth * gpuFrameHeight / 2) * sizeof(Span), "main() task spans");
   int size = gpuFramebufferSizeBytes;
 #ifdef USE_GPU_VSYNC
-  // BUG in vc_dispmanx_resource_read_data(!!): If one is capturing a small subrectangle of a large screen resource rectangle, the destination pointer 
+  // BUG in vc_dispmanx_resource_read_data(!!): If one is capturing a small subrectangle of a large screen resource rectangle, the destination pointer
   // is in vc_dispmanx_resource_read_data() incorrectly still taken to point to the top-left corner of the large screen resource, instead of the top-left
   // corner of the subrectangle to capture. Therefore do dirty pointer arithmetic to adjust for this. To make this safe, videoCoreFramebuffer is allocated
   // double its needed size so that this adjusted pointer does not reference outside allocated memory (if it did, vc_dispmanx_resource_read_data() was seen
   // to randomly fail and then subsequently hang if called a second time)
   size *= 2;
 #endif
-  uint16_t *framebuffer[2] = { (uint16_t *)Malloc(size, "main() framebuffer0"), (uint16_t *)Malloc(gpuFramebufferSizeBytes, "main() framebuffer1") };
-  memset(framebuffer[0], 0, size); // Doublebuffer received GPU memory contents, first buffer contains current GPU memory,
+  uint16_t *framebuffer[2] = {(uint16_t *)Malloc(size, "main() framebuffer0"), (uint16_t *)Malloc(gpuFramebufferSizeBytes, "main() framebuffer1")};
+  memset(framebuffer[0], 0, size);                    // Doublebuffer received GPU memory contents, first buffer contains current GPU memory,
   memset(framebuffer[1], 0, gpuFramebufferSizeBytes); // second buffer contains whatever the display is currently showing. This allows diffing pixels between the two.
 #ifdef USE_GPU_VSYNC
   // Due to the above bug. In USE_GPU_VSYNC mode, we directly snapshot to framebuffer[0], so it has to be prepared specially to work around the
   // dispmanx bug.
-  framebuffer[0] += (gpuFramebufferSizeBytes>>1);
+  framebuffer[0] += (gpuFramebufferSizeBytes >> 1);
 #endif
 
   uint32_t curFrameEnd = spiTaskMemory->queueTail;
@@ -136,10 +141,10 @@ int main()
 
   bool prevFrameWasInterlacedUpdate = false;
   bool interlacedUpdate = false; // True if the previous update we did was an interlaced half field update.
-  int frameParity = 0; // For interlaced frame updates, this is either 0 or 1 to denote evens or odds.
+  int frameParity = 0;           // For interlaced frame updates, this is either 0 or 1 to denote evens or odds.
   OpenKeyboard();
   printf("All initialized, now running main loop...\n");
-  while(programRunning)
+  while (programRunning)
   {
     prevFrameWasInterlacedUpdate = interlacedUpdate;
 
@@ -151,8 +156,9 @@ int main()
     {
 #ifdef THROTTLE_INTERLACING
       timespec timeout = {};
-      timeout.tv_nsec = 1000 * MIN(1000000, MAX(1, 750/*0.75ms extra sleep so we know we should likely sleep long enough to see the next frame*/ + PredictNextFrameArrivalTime() - tick()));
-      if (programRunning) syscall(SYS_futex, &numNewGpuFrames, FUTEX_WAIT, 0, &timeout, 0, 0); // Start sleeping until we get new tasks
+      timeout.tv_nsec = 1000 * MIN(1000000, MAX(1, 750 /*0.75ms extra sleep so we know we should likely sleep long enough to see the next frame*/ + PredictNextFrameArrivalTime() - tick()));
+      if (programRunning)
+        syscall(SYS_futex, &numNewGpuFrames, FUTEX_WAIT, 0, &timeout, 0, 0); // Start sleeping until we get new tasks
 #endif
       // If THROTTLE_INTERLACING is not defined, we'll fall right through and immediately submit the rest of the remaining content on screen to attempt to minimize the visual
       // observable effect of interlacing, although at the expense of smooth animation (falling through here causes jitter)
@@ -160,7 +166,7 @@ int main()
     else
     {
       uint64_t waitStart = tick();
-      while(__atomic_load_n(&numNewGpuFrames, __ATOMIC_SEQ_CST) == 0)
+      while (__atomic_load_n(&numNewGpuFrames, __ATOMIC_SEQ_CST) == 0)
       {
 #if defined(BACKLIGHT_CONTROL) && defined(TURN_DISPLAY_OFF_AFTER_USECS_OF_INACTIVITY)
         if (!displayOff && tick() - waitStart > TURN_DISPLAY_OFF_AFTER_USECS_OF_INACTIVITY)
@@ -174,11 +180,13 @@ int main()
           timespec timeout = {};
           timeout.tv_sec = ((uint64_t)TURN_DISPLAY_OFF_AFTER_USECS_OF_INACTIVITY * 1000) / 1000000000;
           timeout.tv_nsec = ((uint64_t)TURN_DISPLAY_OFF_AFTER_USECS_OF_INACTIVITY * 1000) % 1000000000;
-          if (programRunning) syscall(SYS_futex, &numNewGpuFrames, FUTEX_WAIT, 0, &timeout, 0, 0); // Sleep until the next frame arrives
+          if (programRunning)
+            syscall(SYS_futex, &numNewGpuFrames, FUTEX_WAIT, 0, &timeout, 0, 0); // Sleep until the next frame arrives
         }
         else
 #endif
-          if (programRunning) syscall(SYS_futex, &numNewGpuFrames, FUTEX_WAIT, 0, 0, 0, 0); // Sleep until the next frame arrives
+            if (programRunning)
+          syscall(SYS_futex, &numNewGpuFrames, FUTEX_WAIT, 0, 0, 0, 0); // Sleep until the next frame arrives
       }
     }
 
@@ -193,21 +201,23 @@ int main()
         spiThreadWasWorkingHardBefore = true; // SPI thread had too much work in queue atm (2 full frames)
 
       // Peek at the SPI thread's workload and throttle a bit if it has got a lot of work still to do.
-      double usecsUntilSpiQueueEmpty = spiTaskMemory->spiBytesQueued*spiUsecsPerByte;
+      double usecsUntilSpiQueueEmpty = spiTaskMemory->spiBytesQueued * spiUsecsPerByte;
       if (usecsUntilSpiQueueEmpty > 0)
       {
         uint32_t bytesInQueueBefore = spiTaskMemory->spiBytesQueued;
-        uint32_t sleepUsecs = (uint32_t)(usecsUntilSpiQueueEmpty*0.4);
+        uint32_t sleepUsecs = (uint32_t)(usecsUntilSpiQueueEmpty * 0.4);
 #ifdef STATISTICS
         uint64_t t0 = tick();
 #endif
-        if (sleepUsecs > 1000) usleep(500);
+        if (sleepUsecs > 1000)
+          usleep(500);
 
 #ifdef STATISTICS
         uint64_t t1 = tick();
         uint32_t bytesInQueueAfter = spiTaskMemory->spiBytesQueued;
         bool starved = (spiTaskMemory->queueHead == spiTaskMemory->queueTail);
-        if (starved) spiThreadWasWorkingHardBefore = false;
+        if (starved)
+          spiThreadWasWorkingHardBefore = false;
 
 /*
         if (once && starved)
@@ -224,20 +234,24 @@ int main()
 
     int expiredFrames = 0;
     uint64_t now = tick();
-    while(expiredFrames < frameTimeHistorySize && now - frameTimeHistory[expiredFrames].time >= FRAMERATE_HISTORY_LENGTH) ++expiredFrames;
+    while (expiredFrames < frameTimeHistorySize && now - frameTimeHistory[expiredFrames].time >= FRAMERATE_HISTORY_LENGTH)
+      ++expiredFrames;
     if (expiredFrames > 0)
     {
       frameTimeHistorySize -= expiredFrames;
-      for(int i = 0; i < frameTimeHistorySize; ++i) frameTimeHistory[i] = frameTimeHistory[i+expiredFrames];
+      for (int i = 0; i < frameTimeHistorySize; ++i)
+        frameTimeHistory[i] = frameTimeHistory[i + expiredFrames];
     }
 
 #ifdef STATISTICS
     int expiredSkippedFrames = 0;
-    while(expiredSkippedFrames < frameSkipTimeHistorySize && now - frameSkipTimeHistory[expiredSkippedFrames] >= 1000000/*FRAMERATE_HISTORY_LENGTH*/) ++expiredSkippedFrames;
+    while (expiredSkippedFrames < frameSkipTimeHistorySize && now - frameSkipTimeHistory[expiredSkippedFrames] >= 1000000 /*FRAMERATE_HISTORY_LENGTH*/)
+      ++expiredSkippedFrames;
     if (expiredSkippedFrames > 0)
     {
       frameSkipTimeHistorySize -= expiredSkippedFrames;
-      for(int i = 0; i < frameSkipTimeHistorySize; ++i) frameSkipTimeHistory[i] = frameSkipTimeHistory[i+expiredSkippedFrames];
+      for (int i = 0; i < frameSkipTimeHistorySize; ++i)
+        frameSkipTimeHistory[i] = frameSkipTimeHistory[i + expiredSkippedFrames];
     }
 #endif
 
@@ -256,10 +270,10 @@ int main()
       uint64_t framePollingStartTime = frameObtainedTime;
 
 #if defined(SAVE_BATTERY_BY_PREDICTING_FRAME_ARRIVAL_TIMES) || defined(SAVE_BATTERY_BY_SLEEPING_WHEN_IDLE)
-    uint64_t nextFrameArrivalTime = PredictNextFrameArrivalTime();
-    int64_t timeToSleep = nextFrameArrivalTime - tick();
-    if (timeToSleep > 0)
-      usleep(timeToSleep);
+      uint64_t nextFrameArrivalTime = PredictNextFrameArrivalTime();
+      int64_t timeToSleep = nextFrameArrivalTime - tick();
+      if (timeToSleep > 0)
+        usleep(timeToSleep);
 #endif
 
       framebufferHasNewChangedPixels = SnapshotFramebuffer(framebuffer[0]);
@@ -271,7 +285,7 @@ int main()
 
 #ifdef STATISTICS
       uint64_t now = tick();
-      for(int i = 0; i < numNewFrames - 1 && frameSkipTimeHistorySize < FRAMERATE_HISTORY_LENGTH; ++i)
+      for (int i = 0; i < numNewFrames - 1 && frameSkipTimeHistorySize < FRAMERATE_HISTORY_LENGTH; ++i)
         frameSkipTimeHistory[frameSkipTimeHistorySize++] = now;
 #endif
       __atomic_fetch_sub(&numNewGpuFrames, numNewFrames, __ATOMIC_SEQ_CST);
@@ -290,8 +304,8 @@ int main()
       // we must keep polling for frames until we find one that it has produced.
 #ifdef SELF_SYNCHRONIZE_TO_GPU_VSYNC_PRODUCED_NEW_FRAMES
       framebufferHasNewChangedPixels = framebufferHasNewChangedPixels && IsNewFramebuffer(framebuffer[0], framebuffer[1]);
-      uint64_t timeToGiveUpThereIsNotGoingToBeANewFrame = framePollingStartTime + 1000000/TARGET_FRAME_RATE/2;
-      while(!framebufferHasNewChangedPixels && tick() < timeToGiveUpThereIsNotGoingToBeANewFrame)
+      uint64_t timeToGiveUpThereIsNotGoingToBeANewFrame = framePollingStartTime + 1000000 / TARGET_FRAME_RATE / 2;
+      while (!framebufferHasNewChangedPixels && tick() < timeToGiveUpThereIsNotGoingToBeANewFrame)
       {
         usleep(2000);
         frameObtainedTime = tick();
@@ -309,11 +323,11 @@ int main()
 
 #ifdef STATISTICS
       now = tick();
-      for(int i = 0; i < numNewFrames - 1 && frameSkipTimeHistorySize < FRAMERATE_HISTORY_LENGTH; ++i)
+      for (int i = 0; i < numNewFrames - 1 && frameSkipTimeHistorySize < FRAMERATE_HISTORY_LENGTH; ++i)
         frameSkipTimeHistory[frameSkipTimeHistorySize++] = now;
 
       uint64_t completelyUnnecessaryTimeWastedPollingGPUStop = tick();
-      __atomic_fetch_add(&timeWastedPollingGPU, completelyUnnecessaryTimeWastedPollingGPUStop-completelyUnnecessaryTimeWastedPollingGPUStart, __ATOMIC_RELAXED);
+      __atomic_fetch_add(&timeWastedPollingGPU, completelyUnnecessaryTimeWastedPollingGPUStop - completelyUnnecessaryTimeWastedPollingGPUStart, __ATOMIC_RELAXED);
 #endif
 
 #else // !USE_GPU_VSYNC
@@ -327,7 +341,7 @@ int main()
     double desiredTargetFps = MAX(1, MIN(inputDataFps, TARGET_FRAME_RATE));
 #ifdef SINGLE_CORE_BOARD
     const double timesliceToUseForScreenUpdates = 250000;
-#elif defined(ILI9486) || defined(ILI9486L) ||defined(HX8357D)
+#elif defined(ILI9486) || defined(ILI9486L) || defined(HX8357D)
     const double timesliceToUseForScreenUpdates = 750000;
 #else
     const double timesliceToUseForScreenUpdates = 1500000;
@@ -343,11 +357,12 @@ int main()
 #elif defined(ALWAYS_INTERLACING)
     interlacedUpdate = (numChangedPixels > 0);
 #else
-    uint32_t bytesToSend = numChangedPixels * SPI_BYTESPERPIXEL + (DISPLAY_DRAWABLE_HEIGHT<<1);
+    uint32_t bytesToSend = numChangedPixels * SPI_BYTESPERPIXEL + (DISPLAY_DRAWABLE_HEIGHT << 1);
     interlacedUpdate = ((bytesToSend + spiTaskMemory->spiBytesQueued) * spiUsecsPerByte > tooMuchToUpdateUsecs); // Decide whether to do interlacedUpdate - only updates half of the screen
 #endif
 
-    if (interlacedUpdate) frameParity = 1-frameParity; // Swap even-odd fields every second time we do an interlaced update (progressive updates ignore field order)
+    if (interlacedUpdate)
+      frameParity = 1 - frameParity; // Swap even-odd fields every second time we do an interlaced update (progressive updates ignore field order)
     int bytesTransferred = 0;
     Span *head = 0;
 
@@ -389,137 +404,145 @@ int main()
 
     // Submit spans
     if (!displayOff)
-    for(Span *i = head; i; i = i->next)
-    {
+      for (Span *i = head; i; i = i->next)
+      {
 #ifdef ALIGN_TASKS_FOR_DMA_TRANSFERS
-      // DMA transfers smaller than 4 bytes are causing trouble, so in order to ensure smooth DMA operation,
-      // make sure each message is at least 4 bytes in size, hence one pixel spans are forbidden:
-      if (i->size == 1)
-      {
-        if (i->endX < DISPLAY_DRAWABLE_WIDTH) { ++i->endX; ++i->lastScanEndX; }
-        else --i->x;
-        ++i->size;
-      }
+        // DMA transfers smaller than 4 bytes are causing trouble, so in order to ensure smooth DMA operation,
+        // make sure each message is at least 4 bytes in size, hence one pixel spans are forbidden:
+        if (i->size == 1)
+        {
+          if (i->endX < DISPLAY_DRAWABLE_WIDTH)
+          {
+            ++i->endX;
+            ++i->lastScanEndX;
+          }
+          else
+            --i->x;
+          ++i->size;
+        }
 #endif
-      // Update the write cursor if needed
+        // Update the write cursor if needed
 #ifndef DISPLAY_WRITE_PIXELS_CMD_DOES_NOT_RESET_WRITE_CURSOR
-      if (spiY != i->y)
+        if (spiY != i->y)
 #endif
-      {
+        {
 #if defined(MUST_SEND_FULL_CURSOR_WINDOW) || defined(ALIGN_TASKS_FOR_DMA_TRANSFERS)
-        QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_Y, displayYOffset + i->y, displayYOffset + gpuFrameHeight - 1);
+          QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_Y, displayYOffset + i->y, displayYOffset + gpuFrameHeight - 1);
 #else
-        QUEUE_MOVE_CURSOR_TASK(DISPLAY_SET_CURSOR_Y, displayYOffset + i->y);
+          QUEUE_MOVE_CURSOR_TASK(DISPLAY_SET_CURSOR_Y, displayYOffset + i->y);
 #endif
-        IN_SINGLE_THREADED_MODE_RUN_TASK();
-        spiY = i->y;
-      }
+          IN_SINGLE_THREADED_MODE_RUN_TASK();
+          spiY = i->y;
+        }
 
-      if (i->endY > i->y + 1 && (spiX != i->x || spiEndX != i->endX)) // Multiline span?
-      {
-        QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + i->endX - 1);
-        IN_SINGLE_THREADED_MODE_RUN_TASK();
-        spiX = i->x;
-        spiEndX = i->endX;
-      }
-      else // Singleline span
-      {
+        if (i->endY > i->y + 1 && (spiX != i->x || spiEndX != i->endX)) // Multiline span?
+        {
+          QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + i->endX - 1);
+          IN_SINGLE_THREADED_MODE_RUN_TASK();
+          spiX = i->x;
+          spiEndX = i->endX;
+        }
+        else // Singleline span
+        {
 #ifdef ALIGN_TASKS_FOR_DMA_TRANSFERS
-        if (spiX != i->x || spiEndX < i->endX)
-        {
-          QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + gpuFrameWidth - 1);
-          IN_SINGLE_THREADED_MODE_RUN_TASK();
-          spiX = i->x;
-          spiEndX = gpuFrameWidth;
-        }
+          if (spiX != i->x || spiEndX < i->endX)
+          {
+            QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + gpuFrameWidth - 1);
+            IN_SINGLE_THREADED_MODE_RUN_TASK();
+            spiX = i->x;
+            spiEndX = gpuFrameWidth;
+          }
 #else
-        if (spiEndX < i->endX) // Need to push the X end window?
-        {
-          // We are doing a single line span and need to increase the X window. If possible,
-          // peek ahead to cater to the next multiline span update if that will be compatible.
-          int nextEndX = gpuFrameWidth;
-          for(Span *j = i->next; j; j = j->next)
-            if (j->endY > j->y+1)
-            {
-              if (j->endX >= i->endX) nextEndX = j->endX;
-              break;
-            }
-          QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + nextEndX - 1);
-          IN_SINGLE_THREADED_MODE_RUN_TASK();
-          spiX = i->x;
-          spiEndX = nextEndX;
-        }
-        else
+          if (spiEndX < i->endX) // Need to push the X end window?
+          {
+            // We are doing a single line span and need to increase the X window. If possible,
+            // peek ahead to cater to the next multiline span update if that will be compatible.
+            int nextEndX = gpuFrameWidth;
+            for (Span *j = i->next; j; j = j->next)
+              if (j->endY > j->y + 1)
+              {
+                if (j->endX >= i->endX)
+                  nextEndX = j->endX;
+                break;
+              }
+            QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + nextEndX - 1);
+            IN_SINGLE_THREADED_MODE_RUN_TASK();
+            spiX = i->x;
+            spiEndX = nextEndX;
+          }
+          else
 #ifndef DISPLAY_WRITE_PIXELS_CMD_DOES_NOT_RESET_WRITE_CURSOR
-        if (spiX != i->x)
+              if (spiX != i->x)
 #endif
-        {
+          {
 #ifdef MUST_SEND_FULL_CURSOR_WINDOW
-          QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + spiEndX - 1);
+            QUEUE_SET_WRITE_WINDOW_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x, displayXOffset + spiEndX - 1);
 #else
-          QUEUE_MOVE_CURSOR_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x);
+            QUEUE_MOVE_CURSOR_TASK(DISPLAY_SET_CURSOR_X, displayXOffset + i->x);
 #endif
-          IN_SINGLE_THREADED_MODE_RUN_TASK();
-          spiX = i->x;
+            IN_SINGLE_THREADED_MODE_RUN_TASK();
+            spiX = i->x;
+          }
+#endif
         }
-#endif
-      }
 
-      // Submit the span pixels
-      SPITask *task = AllocTask(i->size*SPI_BYTESPERPIXEL);
-      task->cmd = DISPLAY_WRITE_PIXELS;
+        // Submit the span pixels
+        SPITask *task = AllocTask(i->size * SPI_BYTESPERPIXEL);
+        task->cmd = DISPLAY_WRITE_PIXELS;
 
-      bytesTransferred += task->PayloadSize()+1;
-      uint16_t *scanline = framebuffer[0] + i->y * (gpuFramebufferScanlineStrideBytes>>1);
-      uint16_t *prevScanline = framebuffer[1] + i->y * (gpuFramebufferScanlineStrideBytes>>1);
+        bytesTransferred += task->PayloadSize() + 1;
+        uint16_t *scanline = framebuffer[0] + i->y * (gpuFramebufferScanlineStrideBytes >> 1);
+        uint16_t *prevScanline = framebuffer[1] + i->y * (gpuFramebufferScanlineStrideBytes >> 1);
 
 #ifdef OFFLOAD_PIXEL_COPY_TO_DMA_CPP
-      // If running a singlethreaded build without a separate SPI thread, we can offload the whole flow of the pixel data out to the code in the dma.cpp backend,
-      // which does the pixel task handoff out to DMA in inline assembly. This is done mainly to save an extra memcpy() when passing data off from GPU to SPI,
-      // since in singlethreaded mode, snapshotting GPU and sending data to SPI is done sequentially in this main loop.
-      // In multithreaded builds, this approach cannot be used, since after we snapshot a frame, we need to send it off to SPI thread to process, and make a copy
-      // anways to ensure it does not get overwritten.
-      task->fb = (uint8_t*)(scanline + i->x);
-      task->prevFb = (uint8_t*)(prevScanline + i->x);
-      task->width = i->endX - i->x;
+        // If running a singlethreaded build without a separate SPI thread, we can offload the whole flow of the pixel data out to the code in the dma.cpp backend,
+        // which does the pixel task handoff out to DMA in inline assembly. This is done mainly to save an extra memcpy() when passing data off from GPU to SPI,
+        // since in singlethreaded mode, snapshotting GPU and sending data to SPI is done sequentially in this main loop.
+        // In multithreaded builds, this approach cannot be used, since after we snapshot a frame, we need to send it off to SPI thread to process, and make a copy
+        // anways to ensure it does not get overwritten.
+        task->fb = (uint8_t *)(scanline + i->x);
+        task->prevFb = (uint8_t *)(prevScanline + i->x);
+        task->width = i->endX - i->x;
 #else
-      uint16_t *data = (uint16_t*)task->data;
-      for(int y = i->y; y < i->endY; ++y, scanline += gpuFramebufferScanlineStrideBytes>>1, prevScanline += gpuFramebufferScanlineStrideBytes>>1)
-      {
-        int endX = (y + 1 == i->endY) ? i->lastScanEndX : i->endX;
-        int x = i->x;
+        uint16_t *data = (uint16_t *)task->data;
+        for (int y = i->y; y < i->endY; ++y, scanline += gpuFramebufferScanlineStrideBytes >> 1, prevScanline += gpuFramebufferScanlineStrideBytes >> 1)
+        {
+          int endX = (y + 1 == i->endY) ? i->lastScanEndX : i->endX;
+          int x = i->x;
 #ifdef DISPLAY_COLOR_FORMAT_R6X2G6X2B6X2
-        // Convert from R5G6B5 to R6X2G6X2B6X2 on the fly
-        while(x < endX)
-        {
-          uint16_t pixel = scanline[x++];
-          uint16_t r = (pixel >> 8) & 0xF8;
-          uint16_t g = (pixel >> 3) & 0xFC;
-          uint16_t b = (pixel << 3) & 0xF8;
-          ((uint8_t*)data)[0] = r | (r >> 5); // On red and blue color channels, need to expand 5 bits to 6 bits. Do that by duplicating the highest bit as lowest bit.
-          ((uint8_t*)data)[1] = g;
-          ((uint8_t*)data)[2] = b | (b >> 5);
-          data = (uint16_t*)((uintptr_t)data + 3);
-        }
+          // Convert from R5G6B5 to R6X2G6X2B6X2 on the fly
+          while (x < endX)
+          {
+            uint16_t pixel = scanline[x++];
+            uint16_t r = (pixel >> 8) & 0xF8;
+            uint16_t g = (pixel >> 3) & 0xFC;
+            uint16_t b = (pixel << 3) & 0xF8;
+            ((uint8_t *)data)[0] = r | (r >> 5); // On red and blue color channels, need to expand 5 bits to 6 bits. Do that by duplicating the highest bit as lowest bit.
+            ((uint8_t *)data)[1] = g;
+            ((uint8_t *)data)[2] = b | (b >> 5);
+            data = (uint16_t *)((uintptr_t)data + 3);
+          }
 #else
-        while(x < endX && (x&1)) *data++ = __builtin_bswap16(scanline[x++]);
-        while(x < (endX&~1U))
-        {
-          uint32_t u = *(uint32_t*)(scanline+x);
-          *(uint32_t*)data = ((u & 0xFF00FF00U) >> 8) | ((u & 0x00FF00FFU) << 8);
-          data += 2;
-          x += 2;
-        }
-        while(x < endX) *data++ = __builtin_bswap16(scanline[x++]);
+          while (x < endX && (x & 1))
+            *data++ = __builtin_bswap16(scanline[x++]);
+          while (x < (endX & ~1U))
+          {
+            uint32_t u = *(uint32_t *)(scanline + x);
+            *(uint32_t *)data = ((u & 0xFF00FF00U) >> 8) | ((u & 0x00FF00FFU) << 8);
+            data += 2;
+            x += 2;
+          }
+          while (x < endX)
+            *data++ = __builtin_bswap16(scanline[x++]);
 #endif
 #if !(defined(ALL_TASKS_SHOULD_DMA) && defined(UPDATE_FRAMES_WITHOUT_DIFFING)) // If not diffing, no need to maintain prev frame.
-        memcpy(prevScanline+i->x, scanline+i->x, (endX - i->x)*FRAMEBUFFER_BYTESPERPIXEL);
+          memcpy(prevScanline + i->x, scanline + i->x, (endX - i->x) * FRAMEBUFFER_BYTESPERPIXEL);
 #endif
+        }
+#endif
+        CommitTask(task);
+        IN_SINGLE_THREADED_MODE_RUN_TASK();
       }
-#endif
-      CommitTask(task);
-      IN_SINGLE_THREADED_MODE_RUN_TASK();
-    }
 
 #ifdef KERNEL_MODULE_CLIENT
     // Wake the kernel module up to run tasks. TODO: This might not be best placed here, we could pre-empt
@@ -536,7 +559,7 @@ int main()
     }
 
 #if defined(BACKLIGHT_CONTROL) && defined(TURN_DISPLAY_OFF_AFTER_USECS_OF_INACTIVITY)
-    double percentageOfScreenChanged = (double)numChangedPixels/(DISPLAY_DRAWABLE_WIDTH*DISPLAY_DRAWABLE_HEIGHT);
+    double percentageOfScreenChanged = (double)numChangedPixels / (DISPLAY_DRAWABLE_WIDTH * DISPLAY_DRAWABLE_HEIGHT);
     bool displayIsActive = percentageOfScreenChanged > DISPLAY_CONSIDERED_INACTIVE_PERCENTAGE;
     if (displayIsActive)
       displayContentsLastChanged = tick();
